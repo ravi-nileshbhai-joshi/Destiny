@@ -6,6 +6,7 @@ def compute_average(sessions):
     avg_focus = total_focus / len(sessions)
 
     return avg_energy, avg_focus
+
 def analyze_trends(sessions):
     if len(sessions) < 5:
         return "Not enough data yet."
@@ -80,6 +81,25 @@ def forecast_state(sessions):
 
         }
     recent = sessions[-10:] if len(sessions) >= 10 else sessions
+    
+    moments = [s.get("moment", {}) for s in sessions[-5:]]
+    cores = [m.get("core") for m in moments]
+    modifiers = [mod for m in moments for mod in m.get("modifiers", [])]
+    
+    recent_moments = [s.get("moment", {}) for s in sessions[-5:]]
+    modifiers = [m for moment in recent_moments for m in moment.get("modifiers", [])]
+    cores = [moment.get("core") for moment in recent_moments] 
+
+    recovering_count = modifiers.count("RECOVERING")
+    building_count = modifiers.count("BUILDING")
+    meaningful_count = cores.count("MEANINGFUL")
+    lively_count = cores.count("LIVELY")
+
+    if recovering_count >=3:
+        return {
+            "mode" : "Re-entry",
+            "guidance" : "Let your body come alive first - a walk, some movement, a breath of fresh air. Then, when it feels natural, return to something meaningful"
+        } 
 
     energies = [s["energy"] for s in recent] 
     focuses = [s["focus"] for s in recent]
@@ -118,3 +138,44 @@ def forecast_state(sessions):
             "mode" : mode,
             "message" : message
     }
+
+def extract_life_states(sessions): 
+    recent_sessions = sessions[-5:]
+    states =[]
+    for s in recent_sessions:
+        score = (s["energy"] + s["focus"]) / 2
+        if score < 4 :
+          state = "LOW"
+        elif score < 7:
+          state = "MEDIUM"
+        else:
+           state = "HIGH"
+        states.append(state)
+    return states
+
+def classify_life_phase(life_states):
+    if len(life_states) < 3:
+        return "FORMING"
+    
+    recent = life_states[-5:] #last 5 states
+    low = recent.count("LOW")
+    medium = recent.count("MEDIUM")
+    high = recent.count("HIGH")
+
+    # Pattern detection
+    if low >= 3 and high == 0:
+        return "STUCK"
+
+    if recent[0] == "LOW" and recent[-1] == "HIGH":
+        return "RECOVERING"
+
+    if high >=3 and recent[-1] == "HIGH":
+        return "BUILDING"
+
+    if recent[0] == "HIGH" and recent[-1] == "LOW":
+        return "DECLINING"
+    
+    return "UNSTABLE"
+
+
+
